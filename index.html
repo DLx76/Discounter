@@ -116,18 +116,21 @@ dialog .btns button{flex:1}
 
 <script>
 "use strict";
-const CATS=[["leergut","Leergut / Pfand"],["obst","Obst & Gemüse"],["brot","Brot & Backwaren"],["frische","Fleisch, Wurst & Fisch"],["molkerei","Milch, Käse & Eier"],["theke","Bedientheke"],["fruehstueck","Kaffee, Tee & Frühstück"],["nudeln","Nudeln, Reis & Hülsenfrüchte"],["konserven","Konserven & Saucen"],["gewuerze","Gewürze, Öl & Essig"],["backen","Mehl, Zucker & Backen"],["suess","Süßes & Snacks"],["aktion","Aktionsware"],["drogerie","Drogerie & Hygiene"],["haushalt","Haushalt & Reinigung"],["tier","Tierbedarf"],["getraenke","Getränke"],["wein","Wein, Bier & Spirituosen"],["tk","Tiefkühl"],["sonst","Sonstiges"],["kasse","Kasse"]];
+const CATS=[["leergut","Leergut / Pfand"],["obst","Obst & Gemüse"],["brot","Brot & Backwaren"],["frische","Fleisch, Wurst & Fisch"],["molkerei","Milch, Käse & Eier"],["theke","Bedientheke"],["fruehstueck","Kaffee, Tee & Frühstück"],["nudeln","Nudeln, Reis & Hülsenfrüchte"],["konserven","Konserven & Saucen"],["gewuerze","Gewürze, Öl & Essig"],["backen","Mehl, Zucker & Backen"],["suess","Süßes & Snacks"],["aktion","Aktionsware"],["drogerie","Drogerie allgemein"],["kosmetik","Dekorative Kosmetik"],["gesicht","Gesichtspflege"],["haar","Haarpflege"],["koerper","Körperpflege & Deo"],["rasur","Rasur & Herren"],["zahn","Zahnpflege"],["damen","Damenhygiene"],["sonne","Sonnenschutz"],["gesundheit","Gesundheit & Vitamine"],["baby","Baby"],["papier","Papierwaren"],["haushalt","Haushalt & Reinigung"],["tier","Tierbedarf"],["getraenke","Getränke"],["wein","Wein, Bier & Spirituosen"],["tk","Tiefkühl"],["sonst","Sonstiges"],["kasse","Kasse"]];
 const CATNAME=Object.fromEntries(CATS);
 const FIXED_FIRST="leergut",FIXED_LAST="kasse";
+const DRUG=["drogerie","koerper","haar","zahn","rasur","damen","gesicht","kosmetik","sonne","gesundheit","baby","papier"];
 const TPL={
-  aldinord:["leergut","obst","brot","nudeln","konserven","gewuerze","backen","fruehstueck","suess","frische","molkerei","aktion","drogerie","haushalt","tier","getraenke","wein","tk","sonst","kasse"],
-  lidl:["leergut","obst","brot","frische","molkerei","fruehstueck","nudeln","konserven","gewuerze","backen","suess","aktion","drogerie","haushalt","tier","getraenke","wein","tk","sonst","kasse"],
-  edeka:["leergut","obst","brot","theke","frische","molkerei","fruehstueck","backen","nudeln","konserven","gewuerze","suess","getraenke","wein","drogerie","haushalt","tier","tk","aktion","sonst","kasse"]
+  aldinord:["leergut","obst","brot","nudeln","konserven","gewuerze","backen","fruehstueck","suess","frische","molkerei","aktion",...DRUG,"haushalt","tier","getraenke","wein","tk","sonst","kasse"],
+  lidl:["leergut","obst","brot","frische","molkerei","fruehstueck","nudeln","konserven","gewuerze","backen","suess","aktion",...DRUG,"haushalt","tier","getraenke","wein","tk","sonst","kasse"],
+  edeka:["leergut","obst","brot","theke","frische","molkerei","fruehstueck","backen","nudeln","konserven","gewuerze","suess","getraenke","wein",...DRUG,"haushalt","tier","tk","aktion","sonst","kasse"],
+  dm:["leergut","aktion","kosmetik","gesicht","sonne","haar","koerper","rasur","zahn","damen","drogerie","gesundheit","baby","fruehstueck","backen","nudeln","suess","getraenke","haushalt","papier","tier","sonst","kasse"],
+  rossmann:["leergut","aktion","kosmetik","gesicht","haar","koerper","rasur","sonne","zahn","damen","drogerie","gesundheit","baby","haushalt","papier","tier","suess","fruehstueck","getraenke","sonst","kasse"]
 };
-const TPLNAME={aldinord:"Aldi Nord",lidl:"Lidl",edeka:"Edeka"};
+const TPLNAME={aldinord:"Aldi Nord",lidl:"Lidl",edeka:"Edeka",dm:"dm",rossmann:"Rossmann"};
 
 /* Kategorie-Erkennung */
-const EXACT={ei:"molkerei",eier:"molkerei","öl":"gewuerze",tee:"fruehstueck",bier:"wein",reis:"nudeln",salz:"gewuerze",eis:"tk",rum:"wein",gin:"wein",tk:"tk",deo:"drogerie",saft:"getraenke",brot:"brot",mais:"konserven",senf:"gewuerze"};
+const EXACT={ei:"molkerei",eier:"molkerei","öl":"gewuerze",tee:"fruehstueck",bier:"wein",reis:"nudeln",salz:"gewuerze",eis:"tk",rum:"wein",gin:"wein",tk:"tk",deo:"koerper",saft:"getraenke",brot:"brot",mais:"konserven",senf:"gewuerze"};
 const SUBSRC={
   leergut:"leergut pfand",
   obst:"apfel äpfel banane birne orange mandarine clementine zitrone limette traube weintraube beere kiwi ananas mango melone tomate gurke paprika salat zwiebel knoblauch kartoffel möhre karotte zucchini aubergine brokkoli blumenkohl kohl lauch porree champignon pilz spinat radieschen sellerie ingwer avocado kräuter petersilie schnittlauch basilikum obst gemüse rucola kürbis spargel",
@@ -143,8 +146,19 @@ const SUBSRC={
   suess:"schokolade chips keks gummi bonbon riegel salzstangen nüsse erdnüss popcorn praline süßigkeit",
   getraenke:"wasser saft cola limo sprudel schorle eistee energy sirup",
   wein:"wein sekt prosecco schnaps wodka whisky likör radler pils kölsch bier",
-  drogerie:"zahnpasta zahnbürste shampoo duschgel seife sonnencreme rasier binden tampon windel taschentücher toilettenpapier klopapier wattestäbchen pflaster handcreme",
-  haushalt:"spülmittel waschmittel müllbeutel alufolie frischhaltefolie backpapier schwamm reiniger spültabs küchenrolle batterie kerze weichspüler gefrierbeutel",
+  drogerie:"drogerie creme",
+  kosmetik:"mascara lippenstift makeup make-up nagellack puder kajal lidschatten concealer rouge",
+  gesicht:"gesichtscreme tagescreme nachtcreme reinigungsgel abschminktücher serum gesichtswasser",
+  haar:"shampoo spülung haarkur haarspray haargel haarfarbe haarwachs",
+  koerper:"duschgel seife deo bodylotion handcreme körperlotion lippenpflege wattestäbchen fußcreme",
+  rasur:"rasier aftershave bartöl",
+  zahn:"zahnpasta zahncreme zahnbürste zahnseide mundspülung interdental",
+  damen:"binden tampon slipeinlage",
+  sonne:"sonnencreme sonnenspray sonnenschutz aftersun",
+  gesundheit:"vitamin magnesium pflaster nahrungsergänzung zink kopfschmerz erkältung",
+  baby:"windel babybrei babynahrung schnuller feuchttücher",
+  papier:"toilettenpapier klopapier taschentücher küchenrolle wattepads servietten",
+  haushalt:"spülmittel waschmittel müllbeutel alufolie frischhaltefolie backpapier schwamm reiniger spültabs batterie kerze weichspüler gefrierbeutel",
   tier:"katzenfutter hundefutter katzenstreu futter leckerli"
 };
 const SUBS=[];
@@ -167,8 +181,8 @@ function scoresFrom(tpl){
 }
 function newMarket(name,tpl){return{id:"m"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name,tpl,learn:true,scores:scoresFrom(tpl)};}
 function init(){
-  const m=[newMarket("Aldi Nord","aldinord"),newMarket("Lidl","lidl"),newMarket("Edeka","edeka")];
-  return{v:1,markets:m,current:m[0].id,articles:{},list:[]};
+  const m=[newMarket("Aldi Nord","aldinord"),newMarket("Lidl","lidl"),newMarket("Edeka","edeka"),newMarket("dm","dm"),newMarket("Rossmann","rossmann")];
+  return{v:1,markets:m,current:m[0].id,articles:{},list:[],seedDrug:1};
 }
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.markets&&d.articles)return d;}catch(e){}return init();}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast("Speichern fehlgeschlagen");}}
@@ -180,6 +194,10 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const mkt=()=>S.markets.find(m=>m.id===S.current)||S.markets[0];
 const onList=key=>S.list.find(x=>x.k===key);
+for(const m of S.markets){
+  if(m.scores.kosmetik==null&&m.scores.drogerie!=null){DRUG.forEach((c,i)=>{if(m.scores[c]==null)m.scores[c]=m.scores.drogerie+(i+1)*0.01;});normalize(m);}
+}
+if(!S.seedDrug){for(const a of Object.values(S.articles)){if(a.cat==="drogerie"){const g=guessCat(a.name);if(g&&DRUG.includes(g))a.cat=g;}}S.markets.push(newMarket("dm","dm"),newMarket("Rossmann","rossmann"));S.seedDrug=1;save();}
 const MEHLE=["Roggenvollkorn","Roggen 1150","Roggen 997","Weizenvollkorn","Weizen 1050","Weizen 550","Tipo 00"];
 if(!S.seedMehl){for(const n of MEHLE){const key=k(n);if(!S.articles[key])S.articles[key]={name:n,cat:"backen",vorrat:true,stock:0,n:0,last:0};}S.seedMehl=1;save();}
 
@@ -341,7 +359,11 @@ document.addEventListener("submit",ev=>{
 });
 document.addEventListener("change",ev=>{
   const c=ev.target.dataset.ch;
-  if(c==="market"){S.current=ev.target.value;save();render();}
+  if(c==="market"){
+    const to=ev.target.value,n=S.list.filter(x=>x.done).length;
+    if(n&&confirm(`${n} Artikel liegen noch im Wagen.\nEinkauf bei ${mkt().name} erst abschließen?`)) finish();
+    S.current=to;save();render();
+  }
   if(c==="learn"){mkt().learn=ev.target.checked;save();}
 });
 document.getElementById("imp").addEventListener("change",ev=>{
