@@ -9,12 +9,13 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Einkauf</title>
 <style>
-:root{--bg:#f6f6f3;--card:#fff;--fg:#1d1d1b;--mut:#6b6b66;--line:#e3e3de;--acc:#1f6f4a;--accfg:#fff;--accbg:#e4f1ea;--warn:#8a4b00;--warnbg:#fdf0dc;--bad:#b3261e;--badbg:#fbe4e2}
-@media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1e1e1c;--fg:#ecece8;--mut:#9a9a94;--line:#2e2e2b;--acc:#5cc492;--accfg:#0d1f16;--accbg:#183a2a;--warn:#f0b35a;--warnbg:#3a2a12;--bad:#f2867d;--badbg:#3d1c1a}}
+:root{--bg:#f6f6f3;--card:#fff;--fg:#1d1d1b;--mut:#6b6b66;--line:#e3e3de;--acc:#1f6f4a;--accfg:#fff;--accbg:#e4f1ea;--warn:#8a4b00;--warnbg:#fdf0dc;--bad:#b3261e;--badbg:#fbe4e2;--itembg:#eaf4ee;--itemline:#7fb79a;--donebg:#ecece8}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1e1e1c;--fg:#ecece8;--mut:#9a9a94;--line:#2e2e2b;--acc:#5cc492;--accfg:#0d1f16;--accbg:#183a2a;--warn:#f0b35a;--warnbg:#3a2a12;--bad:#f2867d;--badbg:#3d1c1a;--itembg:#1a2b22;--itemline:#3f7a5c;--donebg:#232321}}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
 header{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 14px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line)}
-header h1{font-size:19px;margin:0;flex:1}
+header h1{font-size:19px;margin:0;flex:1;line-height:1.15}
+header h1 small{display:block;font-size:13px;font-weight:500;color:var(--acc);font-style:italic;letter-spacing:.01em}
 select,input,button{font:inherit;color:inherit}
 select,input[type=text]{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;min-height:44px;min-width:0}
 button,.btn{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 14px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
@@ -25,15 +26,17 @@ main{padding:12px 14px 100px;max-width:640px;margin:0 auto}
 .row{display:flex;gap:8px;align-items:center}
 .grow{flex:1;min-width:0}
 .mut{color:var(--mut);font-size:14px}
-h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:18px 2px 6px;font-weight:600}
-.item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px 4px 4px 14px;margin-bottom:6px;min-height:52px;cursor:pointer;user-select:none}
-.box{width:24px;height:24px;border:2px solid var(--mut);border-radius:7px;flex:none;display:grid;place-items:center}
+h3{font-size:16px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:18px 2px 6px;font-weight:600}
+.item{display:flex;align-items:center;gap:14px;background:var(--itembg);border:2px solid var(--itemline);border-radius:14px;padding:6px 4px 6px 14px;margin-bottom:10px;min-height:68px;cursor:pointer;user-select:none}
+.item:active{filter:brightness(.92)}
+.item.done{background:var(--donebg);border:2px dashed var(--line)}
+.box{width:32px;height:32px;border:3px solid var(--itemline);border-radius:9px;background:var(--card);flex:none;display:grid;place-items:center}
 .done .box{background:var(--acc);border-color:var(--acc)}
-.done .box::after{content:"";width:7px;height:12px;border:solid var(--accfg);border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.done .box::after{content:"";width:9px;height:16px;border:solid var(--accfg);border-width:0 4px 4px 0;transform:rotate(45deg) translate(-1px,-1px)}
 .done .nm{text-decoration:line-through;color:var(--mut)}
-.nm{flex:1;min-width:0;font-size:17px}
-.more{border:0;background:none;min-width:44px;padding:0;color:var(--mut);font-size:20px}
-.chip{font-size:12px;padding:3px 8px;border-radius:99px;background:var(--accbg);color:var(--acc);white-space:nowrap;font-weight:600}
+.nm{flex:1;min-width:0;font-size:22px;font-weight:500;line-height:1.25}
+.more{border:0;border-left:1px solid var(--itemline);border-radius:0;background:none;min-width:48px;align-self:stretch;padding:0;color:var(--mut);font-size:22px}
+.chip{font-size:14px;padding:3px 8px;border-radius:99px;background:var(--accbg);color:var(--acc);white-space:nowrap;font-weight:600}
 .chip.warn{background:var(--warnbg);color:var(--warn)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{min-height:38px;padding:6px 12px;border-radius:99px;font-size:15px}
@@ -41,6 +44,7 @@ h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)
 .vrow{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 6px 6px 14px;margin-bottom:6px}
 .vrow.leer{border-color:var(--bad);background:var(--badbg)}
 .vrow .grow{cursor:pointer}
+.vrow b{overflow-wrap:anywhere}
 .vrow small{display:block;color:var(--mut);font-size:13px}
 .cnt{min-width:30px;text-align:center;font-weight:700;font-size:18px}
 .vrow button{min-width:44px;padding:0;font-size:20px}
@@ -73,7 +77,7 @@ dialog .btns button{flex:1}
 </head>
 <body>
 <header>
-  <h1>Einkauf</h1>
+  <h1>Einkauf<small>Liste, rein, raus, fertig.</small></h1>
   <select id="hMarket" data-ch="market" aria-label="Markt"></select>
 </header>
 
@@ -176,6 +180,8 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const mkt=()=>S.markets.find(m=>m.id===S.current)||S.markets[0];
 const onList=key=>S.list.find(x=>x.k===key);
+const MEHLE=["Roggenvollkorn","Roggen 1150","Roggen 997","Weizenvollkorn","Weizen 1050","Weizen 550","Tipo 00"];
+if(!S.seedMehl){for(const n of MEHLE){const key=k(n);if(!S.articles[key])S.articles[key]={name:n,cat:"backen",vorrat:true,stock:0,n:0,last:0};}S.seedMehl=1;save();}
 
 function order(m){
   const ids=CATS.map(c=>c[0]);
@@ -269,13 +275,17 @@ function renderList(){
   const rec=Object.entries(S.articles).filter(([key,a])=>a.last&&!onList(key)).sort((a,b)=>b[1].last-a[1].last).slice(0,16);
   document.getElementById("recent").innerHTML=rec.length?`<h3>Zuletzt gekauft</h3><div class="chips">${rec.map(([key,a])=>`<button data-act="readd" data-k="${esc(key)}">＋ ${esc(a.name)}</button>`).join("")}</div>`:"";
 }
-const SUGG=["Mehl","Zucker","Salz","Öl","Essig","Wein","Reis","Nudeln","Kaffee","Senf"];
+const SUGG=["Zucker","Salz","Öl","Essig","Wein","Reis","Nudeln","Kaffee","Senf"];
 function renderVorrat(){
-  const v=Object.entries(S.articles).filter(([,a])=>a.vorrat).sort((x,y)=>((x[1].stock>0)-(y[1].stock>0))||x[1].name.localeCompare(y[1].name,"de"));
+  const v=Object.entries(S.articles).filter(([,a])=>a.vorrat);
   let h="";
   if(!v.length) h=`<p class="empty">Noch nichts im Vorratsschrank.</p>`;
-  h+=v.map(([key,a])=>{const ol=onList(key)&&!onList(key).done;
+  for(const c of CATS.map(x=>x[0])){
+    const g=v.filter(([,a])=>a.cat===c).sort((x,y)=>x[1].name.localeCompare(y[1].name,"de",{numeric:true}));
+    if(!g.length) continue;
+    h+=`<h3>${esc(CATNAME[c])}</h3>`+g.map(([key,a])=>{const ol=onList(key)&&!onList(key).done;
     return `<div class="vrow${a.stock>0?"":" leer"}"><div class="grow" data-act="edit" data-k="${esc(key)}"><b>${esc(a.name)}</b><small>${a.stock>0?"":"leer · "}${relTime(a.last)}</small></div><button data-act="dec" data-k="${esc(key)}" aria-label="weniger">−</button><span class="cnt">${a.stock}</span><button data-act="inc" data-k="${esc(key)}" aria-label="mehr">＋</button><button data-act="tolist" data-k="${esc(key)}" class="${ol?"on":""}" aria-label="Auf die Liste">🛒</button></div>`;}).join("");
+  }
   const sug=SUGG.filter(n=>!(S.articles[k(n)]||{}).vorrat);
   if(sug.length) h+=`<h3>Schnell anlegen</h3><div class="chips">${sug.map(n=>`<button data-act="addvsug" data-n="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div>`;
   document.getElementById("vBody").innerHTML=h;
