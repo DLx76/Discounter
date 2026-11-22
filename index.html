@@ -71,6 +71,12 @@ dialog .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
 dialog .btns button{flex:1}
 .stock{display:flex;align-items:center;gap:10px;margin:6px 0 4px 32px}
 .stock button{min-width:44px;padding:0;font-size:20px}
+.tools{display:flex;gap:8px;margin-top:10px}
+.tools button{flex:1;min-height:42px;font-size:15px;padding:6px 8px}
+.calc{display:grid;grid-template-columns:22px 1fr 1fr 82px;gap:6px;align-items:center;margin-bottom:8px}
+.calc input,.calc select{width:100%;min-width:0}
+.cres p{margin:6px 0}
+.good{color:var(--acc);font-weight:600}.badtxt{color:var(--bad);font-weight:600}
 #toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:90%;text-align:center}
 #toast.show{opacity:1}
 </style>
@@ -87,6 +93,7 @@ dialog .btns button{flex:1}
       <input type="text" id="inp" class="grow" list="arts" placeholder="Artikel (mehrere mit Komma)" autocomplete="off" enterkeyhint="done">
       <button class="pri" aria-label="Hinzufügen">＋</button>
     </form>
+    <div id="tools" class="tools"></div>
     <div id="listBody"></div>
     <div id="recent"></div>
   </section>
@@ -229,6 +236,7 @@ function getArt(name){
 }
 
 function addToList(raw){
+  raw=raw.replace(/^[\s\S]*?einkaufsliste\s*:\s*/i,"");
   const names=raw.split(/[,;\n]/).map(s=>s.trim()).filter(Boolean);
   let ask=null,added=0;
   for(const n of names){
@@ -290,6 +298,7 @@ function renderList(){
     h+=`<button class="pri wide" data-act="finish">Einkauf abschließen (${done.length})</button>`;
   }
   document.getElementById("listBody").innerHTML=h;
+  document.getElementById("tools").innerHTML=`<button data-act="share">📤 Teilen</button><button data-act="paste">📋 Einfügen</button>${S.priceOn?`<button data-act="calc">⚖️ Preis</button>`:""}`;
   const rec=Object.entries(S.articles).filter(([key,a])=>a.last&&!onList(key)).sort((a,b)=>b[1].last-a[1].last).slice(0,16);
   document.getElementById("recent").innerHTML=rec.length?`<h3>Zuletzt gekauft</h3><div class="chips">${rec.map(([key,a])=>`<button data-act="readd" data-k="${esc(key)}">＋ ${esc(a.name)}</button>`).join("")}</div>`:"";
 }
@@ -317,6 +326,8 @@ function renderMarkt(){
   <div class="row"><button class="grow" data-act="reset">Auf Vorlage zurücksetzen</button>${S.markets.length>1?`<button data-act="delmarket">Markt löschen</button>`:""}</div></div>
   <div class="card"><h2>Weiteren Markt anlegen</h2>
   <div class="row" style="flex-wrap:wrap"><input type="text" id="nmName" class="grow" placeholder="z. B. Edeka Hauptstraße"><select id="nmTpl">${Object.entries(TPLNAME).map(([t,n])=>`<option value="${t}">Vorlage ${n}</option>`).join("")}</select><button class="pri" data-act="addmarket">Anlegen</button></div></div>
+  <div class="card"><h2>Funktionen</h2>
+  <label class="chk"><input type="checkbox" data-ch="price"${S.priceOn?" checked":""}> Grundpreis-Rechner (€ je kg / l) gegen die Rabattfalle</label></div>
   <div class="card"><h2>Sicherung</h2><p class="mut">Die Daten liegen nur auf diesem Gerät. Ab und zu exportieren schützt vor Verlust.</p>
   <div class="row"><button class="grow" data-act="export">Exportieren</button><button class="grow" data-act="import">Importieren</button></div></div>`;
   document.getElementById("v-markt").innerHTML=h;
@@ -337,14 +348,68 @@ function openSheet(key,isNew){
   <select id="sCat">${CATS.filter(c=>c[0]!=="kasse").map(c=>`<option value="${c[0]}"${c[0]===a.cat?" selected":""}>${esc(c[1])}</option>`).join("")}</select>
   <label class="chk"><input type="checkbox" id="sVor"${a.vorrat?" checked":""}> Vorratsartikel (im Vorratsschrank führen)</label>
   <div class="stock" id="sStock"${a.vorrat?"":" hidden"}><span class="mut">Bestand</span><button data-act="sdec">−</button><span class="cnt" id="sCnt">${a.stock}</span><button data-act="sinc">＋</button></div>
-  <p class="mut">${cap(relTime(a.last))}${a.n?` · ${a.n}× insgesamt`:""}</p>
+  <p class="mut">${cap(relTime(a.last))}${a.n?` · ${a.n}× insgesamt`:""}${S.priceOn&&a.ref?` · Merkpreis ${gpTxt(a.ref)}`:""}</p>
+  ${S.priceOn?`<button class="wide" data-act="calc" data-k="${esc(key)}">⚖️ Grundpreis prüfen</button>`:""}
   <div class="btns">${e?`<button data-act="sremove">Von der Liste</button>`:""}<button data-act="sforget">Artikel löschen</button><button class="pri" data-act="sclose">Fertig</button></div>`;
-  sheet.showModal();
+  if(!sheet.open) sheet.showModal();
   document.getElementById("sCat").onchange=ev=>{a.cat=ev.target.value;save();};
   document.getElementById("sVor").onchange=ev=>{a.vorrat=ev.target.checked;document.getElementById("sStock").hidden=!a.vorrat;save();};
 }
-sheet.addEventListener("close",()=>{sheetKey=null;render();});
+sheet.addEventListener("close",()=>{sheetKey=null;calcKey=null;sheet.oninput=null;render();});
 sheet.addEventListener("click",ev=>{if(ev.target===sheet)sheet.close();});
+
+/* Teilen & Einfügen */
+async function shareList(){
+  const open=S.list.filter(x=>!x.done).map(e=>(S.articles[e.k]||{name:e.k}).name);
+  if(!open.length){toast("Keine offenen Artikel zum Teilen");return;}
+  const text="🛒 Einkaufsliste: "+open.join(", ");
+  let ok=false;
+  if(navigator.share){try{await navigator.share({text});ok=true;}catch(e){if(e&&e.name==="AbortError")return;}}
+  if(!ok){try{await navigator.clipboard.writeText(text);ok=true;toast("In die Zwischenablage kopiert");}catch(e){prompt("Text kopieren:",text);ok=true;}}
+  if(ok&&confirm(`${open.length} Artikel weitergegeben.\nVon Ihrer Liste nehmen? (Abbrechen = behalten)`)){
+    S.list=S.list.filter(x=>x.done);save();render();toast("Liste übergeben");
+  }
+}
+async function pasteList(){
+  try{const t=await navigator.clipboard.readText();if(t&&t.trim()){addToList(t);return;}toast("Zwischenablage ist leer");}
+  catch(e){const i=document.getElementById("inp");i.focus();toast("Ins Feld lange tippen → Einfügen");}
+}
+
+/* Grundpreis-Rechner */
+const UNITS={g:["kg",1000],kg:["kg",1],ml:["l",1000],l:["l",1],stk:["Stück",1]};
+function num(v){const n=parseFloat(String(v).replace(",","."));return isFinite(n)&&n>0?n:null;}
+function gp(p,q,u){p=num(p);q=num(q);if(!p||!q)return null;const [b,f]=UNITS[u];return{v:p/(q/f),u:b};}
+const eur=v=>v.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+function gpTxt(g){return `${eur(g.v)}/${g.u}`+(g.u==="kg"?` (${eur(g.v/10)} je 100 g)`:g.u==="l"?` (${eur(g.v/10)} je 100 ml)`:"");}
+let calcKey=null;
+function openCalc(key){
+  calcKey=key||null;const a=key?S.articles[key]:null;
+  const row=id=>`<div class="calc"><b>${id}</b><input type="text" inputmode="decimal" id="p${id}" placeholder="Preis €"><input type="text" inputmode="decimal" id="q${id}" placeholder="Menge"><select id="u${id}">${Object.keys(UNITS).map(u=>`<option value="${u}">${u==="stk"?"Stück":u}</option>`).join("")}</select></div>`;
+  sheet.innerHTML=`<h2>Grundpreis${a?" – "+esc(a.name):""}</h2>
+  <p class="mut">Preis und Packungsgröße vom Schild eintragen. B ist optional zum Vergleich zweier Packungen.</p>
+  ${row("A")}${row("B")}<div id="cRes" class="cres"></div>
+  <div class="btns">${a?`<button data-act="cref" id="cRefBtn" disabled>A als Merkpreis</button>`:""}<button class="pri" data-act="sclose">Fertig</button></div>`;
+  if(!sheet.open) sheet.showModal();
+  sheet.oninput=calc;calc();
+}
+function calc(){
+  const $=id=>document.getElementById(id);if(!$("pA"))return;
+  const A=gp($("pA").value,$("qA").value,$("uA").value),B=gp($("pB").value,$("qB").value,$("uB").value);
+  const a=calcKey?S.articles[calcKey]:null;let h="";
+  if(A)h+=`<p>A: <b>${gpTxt(A)}</b></p>`;
+  if(B)h+=`<p>B: <b>${gpTxt(B)}</b></p>`;
+  if(A&&B){if(A.u!==B.u)h+=`<p class="mut">Unterschiedliche Einheiten – nicht vergleichbar.</p>`;
+    else if(Math.abs(A.v-B.v)<0.005)h+=`<p class="good">Beide gleich teuer.</p>`;
+    else{const c=A.v<B.v?"A":"B",d=Math.round(Math.abs(A.v-B.v)/Math.max(A.v,B.v)*100);h+=`<p class="good">${c} ist ${d} % günstiger je ${A.u}.</p>`;}}
+  if(a&&a.ref){
+    if(A&&A.u===a.ref.u){const d=Math.round((A.v-a.ref.v)/a.ref.v*100);
+      h+=d<0?`<p class="good">A ist ${-d} % günstiger als Ihr Merkpreis (${eur(a.ref.v)}/${a.ref.u}).</p>`:d>0?`<p class="badtxt">A ist ${d} % teurer als Ihr Merkpreis (${eur(a.ref.v)}/${a.ref.u}) – kein echtes Schnäppchen.</p>`:`<p>A entspricht Ihrem Merkpreis.</p>`;}
+    else h+=`<p class="mut">Ihr Merkpreis: ${gpTxt(a.ref)}</p>`;}
+  $("cRes").innerHTML=h||`<p class="mut">Noch keine vollständige Angabe.</p>`;
+  if($("cRefBtn"))$("cRefBtn").disabled=!A;
+  calcCur=A;
+}
+let calcCur=null;
 
 /* Toast */
 let tt;
@@ -365,6 +430,7 @@ document.addEventListener("change",ev=>{
     S.current=to;save();render();
   }
   if(c==="learn"){mkt().learn=ev.target.checked;save();}
+  if(c==="price"){S.priceOn=ev.target.checked;save();render();}
 });
 document.getElementById("imp").addEventListener("change",ev=>{
   const f=ev.target.files[0];if(!f)return;
@@ -402,6 +468,10 @@ document.addEventListener("click",ev=>{
     case "sremove":S.list=S.list.filter(x=>x.k!==sheetKey);save();sheet.close();break;
     case "sforget":if(confirm("Artikel komplett löschen (auch aus Vorrat und Verlauf)?")){S.list=S.list.filter(x=>x.k!==sheetKey);delete S.articles[sheetKey];save();sheet.close();}break;
     case "sclose":sheet.close();break;
+    case "share":shareList();break;
+    case "paste":pasteList();break;
+    case "calc":openCalc(key);break;
+    case "cref":{const s2=S.articles[calcKey];if(s2&&calcCur){s2.ref={v:calcCur.v,u:calcCur.u};save();toast("Merkpreis gespeichert");calc();}break;}
   }
 });
 
