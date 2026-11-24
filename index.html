@@ -77,6 +77,13 @@ dialog .btns button{flex:1}
 .calc input,.calc select{width:100%;min-width:0}
 .cres p{margin:6px 0}
 .good{color:var(--acc);font-weight:600}.badtxt{color:var(--bad);font-weight:600}
+#upd{position:fixed;left:10px;right:10px;bottom:72px;z-index:15;background:var(--card);border:2px solid var(--acc);border-radius:14px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.25);max-width:620px;margin:0 auto}
+#upd p{margin:0 0 10px}
+#upd .row button{flex:1}
+.shophead{display:flex;align-items:center;gap:8px;margin:18px 0 6px}
+.shophead h3{margin:0 2px;flex:1;text-transform:none;letter-spacing:0}
+a.btn{color:var(--acc);text-decoration:none;font-weight:600;font-size:15px;min-height:40px}
+.sub{display:block;font-size:13px;color:var(--mut);font-weight:400}
 #toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:90%;text-align:center}
 #toast.show{opacity:1}
 </style>
@@ -117,12 +124,15 @@ dialog .btns button{flex:1}
 </nav>
 
 <datalist id="arts"></datalist>
+<datalist id="shops"></datalist>
 <dialog id="sheet"></dialog>
+<div id="upd" hidden></div>
 <div id="toast"></div>
 <input type="file" id="imp" accept="application/json,.json" hidden>
 
 <script>
 "use strict";
+const APP_VERSION="1.8.0";
 const CATS=[["leergut","Leergut / Pfand"],["obst","Obst & Gemüse"],["brot","Brot & Backwaren"],["frische","Fleisch, Wurst & Fisch"],["molkerei","Milch, Käse & Eier"],["theke","Bedientheke"],["fruehstueck","Kaffee, Tee & Frühstück"],["nudeln","Nudeln, Reis & Hülsenfrüchte"],["konserven","Konserven & Saucen"],["gewuerze","Gewürze, Öl & Essig"],["backen","Mehl, Zucker & Backen"],["suess","Süßes & Snacks"],["aktion","Aktionsware"],["drogerie","Drogerie allgemein"],["kosmetik","Dekorative Kosmetik"],["gesicht","Gesichtspflege"],["haar","Haarpflege"],["koerper","Körperpflege & Deo"],["rasur","Rasur & Herren"],["zahn","Zahnpflege"],["damen","Damenhygiene"],["sonne","Sonnenschutz"],["gesundheit","Gesundheit & Vitamine"],["baby","Baby"],["papier","Papierwaren"],["haushalt","Haushalt & Reinigung"],["tier","Tierbedarf"],["getraenke","Getränke"],["wein","Wein, Bier & Spirituosen"],["tk","Tiefkühl"],["sonst","Sonstiges"],["kasse","Kasse"]];
 const CATNAME=Object.fromEntries(CATS);
 const FIXED_FIRST="leergut",FIXED_LAST="kasse";
@@ -204,6 +214,12 @@ const onList=key=>S.list.find(x=>x.k===key);
 for(const m of S.markets){
   if(m.scores.kosmetik==null&&m.scores.drogerie!=null){DRUG.forEach((c,i)=>{if(m.scores[c]==null)m.scores[c]=m.scores.drogerie+(i+1)*0.01;});normalize(m);}
 }
+if(!S.seedOnline){
+  if(!S.markets.some(m=>m.online)){const om=newMarket("Online","aldinord");om.online=true;om.learn=false;S.markets.push(om);}
+  for(const [n,c,sh] of [["Bio Tokujou Sencha Morimoto-Kamimizu","fruehstueck","tee-kontor-kiel.de"],["Dark Pearl Oolong","fruehstueck","tee-kontor-kiel.de"],["Chili Chipotle Jalapeno rot geschrotet","gewuerze","gewuerzshop-mayer.de"],["Kampot Pfeffer rot ganz","gewuerze","gewuerzshop-mayer.de"],["Kaffee Columbien Excelso EP Microlot","fruehstueck","kaffee-ottimo.com"]]){
+    const key=k(n);if(!S.articles[key])S.articles[key]={name:n,cat:c,vorrat:true,stock:0,n:0,last:0,shop:sh};}
+  S.seedOnline=1;save();
+}
 if(!S.seedDrug){for(const a of Object.values(S.articles)){if(a.cat==="drogerie"){const g=guessCat(a.name);if(g&&DRUG.includes(g))a.cat=g;}}S.markets.push(newMarket("dm","dm"),newMarket("Rossmann","rossmann"));S.seedDrug=1;save();}
 const MEHLE=["Roggenvollkorn","Roggen 1150","Roggen 997","Weizenvollkorn","Weizen 1050","Weizen 550","Tipo 00"];
 if(!S.seedMehl){for(const n of MEHLE){const key=k(n);if(!S.articles[key])S.articles[key]={name:n,cat:"backen",vorrat:true,stock:0,n:0,last:0};}S.seedMehl=1;save();}
@@ -245,6 +261,7 @@ function addToList(raw){
     if(onList(key)){const e=onList(key);if(e.done){e.done=false;e.at=0;added++;}continue;}
     S.list.push({k:key,done:false,at:0});added++;
     if(a._new){delete a._new;ask=key;}
+    else if(mkt().online&&!a.shop) ask=key;
   }
   save();render();
   if(ask) openSheet(ask,true);
@@ -279,27 +296,50 @@ function relTime(ts){
 }
 
 /* Rendern */
+const shopUrl=a=>a.url||("https://"+a.shop);
+function setShop(a,v){
+  v=(v||"").trim();
+  if(!v){delete a.shop;delete a.url;return true;}
+  try{const x=new URL(/^https?:\/\//i.test(v)?v:"https://"+v);if(!x.hostname.includes("."))throw 0;
+    a.shop=x.hostname.replace(/^www\./,"");if(x.pathname.length>1||x.search)a.url=x.href;else delete a.url;return true;}
+  catch(e){toast("Webadresse nicht erkannt");return false;}
+}
 function itemHtml(e){
   const a=S.articles[e.k]||{name:e.k};
   let chip="";
   if(a.vorrat){chip=a.stock>0?`<span class="chip warn">noch ${a.stock} da</span>`:`<span class="chip">Vorrat leer</span>`;}
-  return `<div class="item${e.done?" done":""}" data-act="toggle" data-k="${esc(e.k)}"><span class="box"></span><span class="nm">${esc(a.name)}</span>${chip}<button class="more" data-act="edit" data-k="${esc(e.k)}" aria-label="Bearbeiten">⋯</button></div>`;
+  return `<div class="item${e.done?" done":""}" data-act="toggle" data-k="${esc(e.k)}"><span class="box"></span><span class="nm">${esc(a.name)}${a.shop&&mkt().online?`<span class="sub">${esc(relTime(a.last))}</span>`:""}</span>${chip}<button class="more" data-act="edit" data-k="${esc(e.k)}" aria-label="Bearbeiten">⋯</button></div>`;
 }
 function renderList(){
   const m=mkt(),open=S.list.filter(x=>!x.done),done=S.list.filter(x=>x.done);
   let h="";
   if(!S.list.length) h=`<p class="empty">Die Liste ist leer.<br>Oben Artikel eintragen – sie werden nach dem Weg durch ${esc(m.name)} sortiert.</p>`;
-  for(const c of order(m)){
-    const its=open.filter(e=>(S.articles[e.k]||{}).cat===c).sort((x,y)=>S.articles[x.k].name.localeCompare(S.articles[y.k].name,"de"));
+  const isShop=e=>!!(S.articles[e.k]||{}).shop;
+  if(m.online){
+    const rest=open.filter(e=>!isShop(e)).length;
+    if(rest) h+=`<p class="mut">${rest} weitere Artikel ohne Shop gehören in den Laden und sind hier ausgeblendet.</p>`;
+    const shops=[...new Set(open.filter(isShop).map(e=>S.articles[e.k].shop))].sort((a,b)=>(a==="")-(b==="")||a.localeCompare(b));
+    for(const sh of shops){
+      const its=open.filter(e=>(S.articles[e.k]||{}).shop===sh).sort((x,y)=>S.articles[x.k].name.localeCompare(S.articles[y.k].name,"de"));
+      h+=`<div class="shophead"><h3>${sh?"🌐 "+esc(sh):"Ohne Shop"}</h3>${sh?`<a class="btn" href="https://${esc(sh)}" target="_blank" rel="noopener">Shop öffnen ↗</a>`:""}</div>`+its.map(itemHtml).join("");
+    }
+  }
+  if(!m.online) for(const c of order(m)){
+    const its=open.filter(e=>!isShop(e)&&(S.articles[e.k]||{}).cat===c).sort((x,y)=>S.articles[x.k].name.localeCompare(S.articles[y.k].name,"de"));
     if(its.length) h+=`<h3>${esc(CATNAME[c])}</h3>`+its.map(itemHtml).join("");
   }
+  const onl=open.filter(isShop);
+  if(!m.online&&onl.length){
+    const om=S.markets.find(x=>x.online);
+    h+=`<div class="shophead"><h3>🌐 Online bestellen (${onl.length})</h3>${om?`<button data-act="toonline">Zur Online-Liste</button>`:""}</div>`;
+  }
   if(done.length){
-    h+=`<h3>Im Wagen (${done.length})</h3>`+done.sort((a,b)=>a.at-b.at).map(itemHtml).join("");
-    h+=`<button class="pri wide" data-act="finish">Einkauf abschließen (${done.length})</button>`;
+    h+=`<h3>${m.online?"Bestellt":"Im Wagen"} (${done.length})</h3>`+done.sort((a,b)=>a.at-b.at).map(itemHtml).join("");
+    h+=`<button class="pri wide" data-act="finish">${m.online?"Bestellung":"Einkauf"} abschließen (${done.length})</button>`;
   }
   document.getElementById("listBody").innerHTML=h;
   document.getElementById("tools").innerHTML=`<button data-act="share">📤 Teilen</button><button data-act="paste">📋 Einfügen</button>${S.priceOn?`<button data-act="calc">⚖️ Preis</button>`:""}`;
-  const rec=Object.entries(S.articles).filter(([key,a])=>a.last&&!onList(key)).sort((a,b)=>b[1].last-a[1].last).slice(0,16);
+  const rec=Object.entries(S.articles).filter(([key,a])=>a.last&&!onList(key)&&(!m.online||a.shop)).sort((a,b)=>b[1].last-a[1].last).slice(0,16);
   document.getElementById("recent").innerHTML=rec.length?`<h3>Zuletzt gekauft</h3><div class="chips">${rec.map(([key,a])=>`<button data-act="readd" data-k="${esc(key)}">＋ ${esc(a.name)}</button>`).join("")}</div>`:"";
 }
 const SUGG=["Zucker","Salz","Öl","Essig","Wein","Reis","Nudeln","Kaffee","Senf"];
@@ -311,7 +351,7 @@ function renderVorrat(){
     const g=v.filter(([,a])=>a.cat===c).sort((x,y)=>x[1].name.localeCompare(y[1].name,"de",{numeric:true}));
     if(!g.length) continue;
     h+=`<h3>${esc(CATNAME[c])}</h3>`+g.map(([key,a])=>{const ol=onList(key)&&!onList(key).done;
-    return `<div class="vrow${a.stock>0?"":" leer"}"><div class="grow" data-act="edit" data-k="${esc(key)}"><b>${esc(a.name)}</b><small>${a.stock>0?"":"leer · "}${relTime(a.last)}</small></div><button data-act="dec" data-k="${esc(key)}" aria-label="weniger">−</button><span class="cnt">${a.stock}</span><button data-act="inc" data-k="${esc(key)}" aria-label="mehr">＋</button><button data-act="tolist" data-k="${esc(key)}" class="${ol?"on":""}" aria-label="Auf die Liste">🛒</button></div>`;}).join("");
+    return `<div class="vrow${a.stock>0?"":" leer"}"><div class="grow" data-act="edit" data-k="${esc(key)}"><b>${esc(a.name)}</b><small>${a.stock>0?"":"leer · "}${a.shop?"🌐 "+esc(a.shop)+" · ":""}${relTime(a.last)}</small></div><button data-act="dec" data-k="${esc(key)}" aria-label="weniger">−</button><span class="cnt">${a.stock}</span><button data-act="inc" data-k="${esc(key)}" aria-label="mehr">＋</button><button data-act="tolist" data-k="${esc(key)}" class="${ol?"on":""}" aria-label="Auf die Liste">🛒</button></div>`;}).join("");
   }
   const sug=SUGG.filter(n=>!(S.articles[k(n)]||{}).vorrat);
   if(sug.length) h+=`<h3>Schnell anlegen</h3><div class="chips">${sug.map(n=>`<button data-act="addvsug" data-n="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div>`;
@@ -319,21 +359,27 @@ function renderVorrat(){
 }
 function renderMarkt(){
   const m=mkt(),o=order(m);
-  let h=`<div class="card"><h2>Laufweg: ${esc(m.name)}</h2>
+  let h=m.online?`<div class="card"><h2>Online-Bestellungen</h2>
+  <p class="mut">Hier gibt es keinen Laufweg: Die Liste wird nach Shop gruppiert. Den Shop tragen Sie beim Artikel über ⋯ ein. Artikel mit Shop erscheinen in den anderen Märkten gesammelt unter „Online bestellen“.</p>
+  ${(()=>{const c={};Object.values(S.articles).forEach(a=>{if(a.shop)c[a.shop]=(c[a.shop]||0)+1;});const e=Object.entries(c).sort();return e.length?e.map(([sh,n])=>`<div class="shophead"><span class="grow">🌐 ${esc(sh)} <span class="mut">· ${n} Artikel</span></span><a class="btn" href="https://${esc(sh)}" target="_blank" rel="noopener">öffnen ↗</a></div>`).join(""):`<p class="mut">Noch keine Shops erfasst.</p>`;})()}
+  ${S.markets.length>1?`<div class="row"><button class="grow" data-act="delmarket">Markt löschen</button></div>`:""}</div>`:`<div class="card"><h2>Laufweg: ${esc(m.name)}</h2>
   <p class="mut">Vorlage: ${esc(TPLNAME[m.tpl]||"–")}. Mit ▲▼ an die eigene Filiale anpassen. Leergut steht immer am Anfang, die Kasse immer am Ende.</p>
   <label class="chk"><input type="checkbox" data-ch="learn"${m.learn?" checked":""}> Reihenfolge aus dem Abhaken lernen</label>
   <ol class="cats">${o.map((c,i)=>{const fx=c===FIXED_FIRST||c===FIXED_LAST;return `<li><b>${i+1}</b><span>${esc(CATNAME[c])}</span><button data-act="up" data-c="${c}"${fx||i<=1?" disabled":""} aria-label="hoch">▲</button><button data-act="down" data-c="${c}"${fx||i>=o.length-2?" disabled":""} aria-label="runter">▼</button></li>`;}).join("")}</ol>
-  <div class="row"><button class="grow" data-act="reset">Auf Vorlage zurücksetzen</button>${S.markets.length>1?`<button data-act="delmarket">Markt löschen</button>`:""}</div></div>
+  <div class="row"><button class="grow" data-act="reset">Auf Vorlage zurücksetzen</button>${S.markets.length>1?`<button data-act="delmarket">Markt löschen</button>`:""}</div></div>`;
+  h+=`
   <div class="card"><h2>Weiteren Markt anlegen</h2>
   <div class="row" style="flex-wrap:wrap"><input type="text" id="nmName" class="grow" placeholder="z. B. Edeka Hauptstraße"><select id="nmTpl">${Object.entries(TPLNAME).map(([t,n])=>`<option value="${t}">Vorlage ${n}</option>`).join("")}</select><button class="pri" data-act="addmarket">Anlegen</button></div></div>
   <div class="card"><h2>Funktionen</h2>
   <label class="chk"><input type="checkbox" data-ch="price"${S.priceOn?" checked":""}> Grundpreis-Rechner (€ je kg / l) gegen die Rabattfalle</label></div>
   <div class="card"><h2>Sicherung</h2><p class="mut">Die Daten liegen nur auf diesem Gerät. Ab und zu exportieren schützt vor Verlust.</p>
-  <div class="row"><button class="grow" data-act="export">Exportieren</button><button class="grow" data-act="import">Importieren</button></div></div>`;
+  <div class="row"><button class="grow" data-act="export">Exportieren</button><button class="grow" data-act="import">Importieren</button></div></div>
+  <p class="mut" style="text-align:center">Version ${APP_VERSION} · <a href="#" data-act="vcheck" style="color:var(--acc)">Nach Update suchen</a></p>`;
   document.getElementById("v-markt").innerHTML=h;
 }
 function renderHeader(){
   document.getElementById("hMarket").innerHTML=S.markets.map(m=>`<option value="${m.id}"${m.id===S.current?" selected":""}>${esc(m.name)}</option>`).join("");
+  document.getElementById("shops").innerHTML=[...new Set(Object.values(S.articles).map(a=>a.shop).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join("");
   document.getElementById("arts").innerHTML=Object.values(S.articles).map(a=>`<option value="${esc(a.name)}">`).join("");
 }
 function render(){renderHeader();renderList();renderVorrat();renderMarkt();}
@@ -344,8 +390,10 @@ let sheetKey=null;
 function openSheet(key,isNew){
   const a=S.articles[key];if(!a)return;sheetKey=key;
   const e=onList(key);
-  sheet.innerHTML=`<h2>${isNew?`Wo steht „${esc(a.name)}“?`:esc(a.name)}</h2>
+  sheet.innerHTML=`<h2>${isNew?(mkt().online?`Wo bestellen Sie „${esc(a.name)}“?`:`Wo steht „${esc(a.name)}“?`):esc(a.name)}</h2>
   <select id="sCat">${CATS.filter(c=>c[0]!=="kasse").map(c=>`<option value="${c[0]}"${c[0]===a.cat?" selected":""}>${esc(c[1])}</option>`).join("")}</select>
+  <p class="mut" style="margin:12px 0 4px">Online-Shop (Webseite oder Produktlink, optional)</p>
+  <div class="row"><input type="text" id="sShop" class="grow" list="shops" inputmode="url" autocapitalize="off" value="${esc(a.url||a.shop||"")}" placeholder="z. B. tee-kontor-kiel.de">${a.shop?`<a class="btn" id="sShopLink" href="${esc(shopUrl(a))}" target="_blank" rel="noopener">↗</a>`:""}</div>
   <label class="chk"><input type="checkbox" id="sVor"${a.vorrat?" checked":""}> Vorratsartikel (im Vorratsschrank führen)</label>
   <div class="stock" id="sStock"${a.vorrat?"":" hidden"}><span class="mut">Bestand</span><button data-act="sdec">−</button><span class="cnt" id="sCnt">${a.stock}</span><button data-act="sinc">＋</button></div>
   <p class="mut">${cap(relTime(a.last))}${a.n?` · ${a.n}× insgesamt`:""}${S.priceOn&&a.ref?` · Merkpreis ${gpTxt(a.ref)}`:""}</p>
@@ -353,9 +401,10 @@ function openSheet(key,isNew){
   <div class="btns">${e?`<button data-act="sremove">Von der Liste</button>`:""}<button data-act="sforget">Artikel löschen</button><button class="pri" data-act="sclose">Fertig</button></div>`;
   if(!sheet.open) sheet.showModal();
   document.getElementById("sCat").onchange=ev=>{a.cat=ev.target.value;save();};
+  document.getElementById("sShop").onchange=ev=>{if(setShop(a,ev.target.value)){save();toast(a.shop?"Shop: "+a.shop:"Shop entfernt");}};
   document.getElementById("sVor").onchange=ev=>{a.vorrat=ev.target.checked;document.getElementById("sStock").hidden=!a.vorrat;save();};
 }
-sheet.addEventListener("close",()=>{sheetKey=null;calcKey=null;sheet.oninput=null;render();});
+sheet.addEventListener("close",()=>{const si=document.getElementById("sShop");if(si&&sheetKey&&S.articles[sheetKey]){const a=S.articles[sheetKey];if((si.value.trim())!==(a.url||a.shop||""))setShop(a,si.value);save();}sheetKey=null;calcKey=null;sheet.oninput=null;render();});
 sheet.addEventListener("click",ev=>{if(ev.target===sheet)sheet.close();});
 
 /* Teilen & Einfügen */
@@ -410,6 +459,37 @@ function calc(){
   calcCur=A;
 }
 let calcCur=null;
+
+/* Versionsprüfung */
+const APP_FILES=["./","index.html","manifest.webmanifest","icon-192.png","icon-512.png"];
+function vNewer(a,b){const x=a.split(".").map(Number),y=b.split(".").map(Number);for(let i=0;i<3;i++){if((x[i]||0)>(y[i]||0))return true;if((x[i]||0)<(y[i]||0))return false;}return false;}
+let newVer=null;
+async function checkVersion(manual){
+  if(!location.protocol.startsWith("http"))return;
+  try{
+    const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});
+    const v=(await r.json()).version;
+    if(v&&vNewer(v,APP_VERSION)){newVer=v;showUpd();}
+    else if(manual)toast("Sie haben die aktuelle Version "+APP_VERSION);
+  }catch(e){if(manual)toast("Keine Verbindung – später erneut versuchen");}
+}
+function showUpd(){
+  const el=document.getElementById("upd");
+  el.innerHTML=`<p><b>Neue Version ${esc(newVer)} verfügbar.</b><br><span class="mut">Ihre Listen, Vorräte und Märkte bleiben unverändert.</span></p>
+  <div class="row"><button data-act="ulater">Später</button><button class="pri" data-act="uinstall">Installieren</button></div>`;
+  el.hidden=false;
+}
+async function installUpdate(){
+  const el=document.getElementById("upd");
+  el.innerHTML="<p><b>Neue Version wird geladen …</b></p>";
+  try{
+    if("caches" in window){
+      const c=await caches.open("einkauf-app");
+      for(const f of APP_FILES){const r=await fetch(f+"?v="+newVer,{cache:"reload"});if(!r.ok)throw new Error(f);await c.put(f,r);}
+    }
+    location.reload();
+  }catch(e){el.hidden=true;toast("Update fehlgeschlagen – bitte später erneut versuchen");}
+}
 
 /* Toast */
 let tt;
@@ -468,7 +548,11 @@ document.addEventListener("click",ev=>{
     case "sremove":S.list=S.list.filter(x=>x.k!==sheetKey);save();sheet.close();break;
     case "sforget":if(confirm("Artikel komplett löschen (auch aus Vorrat und Verlauf)?")){S.list=S.list.filter(x=>x.k!==sheetKey);delete S.articles[sheetKey];save();sheet.close();}break;
     case "sclose":sheet.close();break;
+    case "ulater":document.getElementById("upd").hidden=true;break;
+    case "uinstall":installUpdate();break;
+    case "vcheck":ev.preventDefault();checkVersion(true);break;
     case "share":shareList();break;
+    case "toonline":{const om=S.markets.find(x=>x.online);if(om){const sel=document.getElementById("hMarket");sel.value=om.id;sel.dispatchEvent(new Event("change",{bubbles:true}));}break;}
     case "paste":pasteList();break;
     case "calc":openCalc(key);break;
     case "cref":{const s2=S.articles[calcKey];if(s2&&calcCur){s2.ref={v:calcCur.v,u:calcCur.u};save();toast("Merkpreis gespeichert");calc();}break;}
@@ -477,6 +561,7 @@ document.addEventListener("click",ev=>{
 
 render();
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
+checkVersion(false);
 </script>
 </body>
 </html>
