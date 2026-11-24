@@ -132,7 +132,7 @@ a.btn{color:var(--acc);text-decoration:none;font-weight:600;font-size:15px;min-h
 
 <script>
 "use strict";
-const APP_VERSION="1.8.0";
+const APP_VERSION="1.8.1";
 const CATS=[["leergut","Leergut / Pfand"],["obst","Obst & Gemüse"],["brot","Brot & Backwaren"],["frische","Fleisch, Wurst & Fisch"],["molkerei","Milch, Käse & Eier"],["theke","Bedientheke"],["fruehstueck","Kaffee, Tee & Frühstück"],["nudeln","Nudeln, Reis & Hülsenfrüchte"],["konserven","Konserven & Saucen"],["gewuerze","Gewürze, Öl & Essig"],["backen","Mehl, Zucker & Backen"],["suess","Süßes & Snacks"],["aktion","Aktionsware"],["drogerie","Drogerie allgemein"],["kosmetik","Dekorative Kosmetik"],["gesicht","Gesichtspflege"],["haar","Haarpflege"],["koerper","Körperpflege & Deo"],["rasur","Rasur & Herren"],["zahn","Zahnpflege"],["damen","Damenhygiene"],["sonne","Sonnenschutz"],["gesundheit","Gesundheit & Vitamine"],["baby","Baby"],["papier","Papierwaren"],["haushalt","Haushalt & Reinigung"],["tier","Tierbedarf"],["getraenke","Getränke"],["wein","Wein, Bier & Spirituosen"],["tk","Tiefkühl"],["sonst","Sonstiges"],["kasse","Kasse"]];
 const CATNAME=Object.fromEntries(CATS);
 const FIXED_FIRST="leergut",FIXED_LAST="kasse";
@@ -396,7 +396,7 @@ function openSheet(key,isNew){
   <div class="row"><input type="text" id="sShop" class="grow" list="shops" inputmode="url" autocapitalize="off" value="${esc(a.url||a.shop||"")}" placeholder="z. B. tee-kontor-kiel.de">${a.shop?`<a class="btn" id="sShopLink" href="${esc(shopUrl(a))}" target="_blank" rel="noopener">↗</a>`:""}</div>
   <label class="chk"><input type="checkbox" id="sVor"${a.vorrat?" checked":""}> Vorratsartikel (im Vorratsschrank führen)</label>
   <div class="stock" id="sStock"${a.vorrat?"":" hidden"}><span class="mut">Bestand</span><button data-act="sdec">−</button><span class="cnt" id="sCnt">${a.stock}</span><button data-act="sinc">＋</button></div>
-  <p class="mut">${cap(relTime(a.last))}${a.n?` · ${a.n}× insgesamt`:""}${S.priceOn&&a.ref?` · Merkpreis ${gpTxt(a.ref)}`:""}</p>
+  <p class="mut">${cap(relTime(a.last))}${a.n?` · ${a.n}× insgesamt`:""}${S.priceOn&&a.ref?` · Merkpreis ${gpTxt(a.ref)}${refDate(a.ref)}`:""}</p>
   ${S.priceOn?`<button class="wide" data-act="calc" data-k="${esc(key)}">⚖️ Grundpreis prüfen</button>`:""}
   <div class="btns">${e?`<button data-act="sremove">Von der Liste</button>`:""}<button data-act="sforget">Artikel löschen</button><button class="pri" data-act="sclose">Fertig</button></div>`;
   if(!sheet.open) sheet.showModal();
@@ -430,6 +430,12 @@ function num(v){const n=parseFloat(String(v).replace(",","."));return isFinite(n
 function gp(p,q,u){p=num(p);q=num(q);if(!p||!q)return null;const [b,f]=UNITS[u];return{v:p/(q/f),u:b};}
 const eur=v=>v.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
 function gpTxt(g){return `${eur(g.v)}/${g.u}`+(g.u==="kg"?` (${eur(g.v/10)} je 100 g)`:g.u==="l"?` (${eur(g.v/10)} je 100 ml)`:"");}
+function refDate(r){
+  if(!r||!r.d)return "";
+  const t=new Date(r.d).toLocaleDateString("de-DE",{month:"long",year:"numeric"});
+  const old=Date.now()-r.d>182*864e5;
+  return ` · gemerkt im ${t}${old?" – älter als ein halbes Jahr, ggf. neu merken":""}`;
+}
 let calcKey=null;
 function openCalc(key){
   calcKey=key||null;const a=key?S.articles[key]:null;
@@ -452,8 +458,8 @@ function calc(){
     else{const c=A.v<B.v?"A":"B",d=Math.round(Math.abs(A.v-B.v)/Math.max(A.v,B.v)*100);h+=`<p class="good">${c} ist ${d} % günstiger je ${A.u}.</p>`;}}
   if(a&&a.ref){
     if(A&&A.u===a.ref.u){const d=Math.round((A.v-a.ref.v)/a.ref.v*100);
-      h+=d<0?`<p class="good">A ist ${-d} % günstiger als Ihr Merkpreis (${eur(a.ref.v)}/${a.ref.u}).</p>`:d>0?`<p class="badtxt">A ist ${d} % teurer als Ihr Merkpreis (${eur(a.ref.v)}/${a.ref.u}) – kein echtes Schnäppchen.</p>`:`<p>A entspricht Ihrem Merkpreis.</p>`;}
-    else h+=`<p class="mut">Ihr Merkpreis: ${gpTxt(a.ref)}</p>`;}
+      h+=d<0?`<p class="good">A ist ${-d} % günstiger als Ihr Merkpreis (${eur(a.ref.v)}/${a.ref.u}${refDate(a.ref)}).</p>`:d>0?`<p class="badtxt">A ist ${d} % teurer als Ihr Merkpreis (${eur(a.ref.v)}/${a.ref.u}${refDate(a.ref)}) – kein echtes Schnäppchen.</p>`:`<p>A entspricht Ihrem Merkpreis.</p>`;}
+    else h+=`<p class="mut">Ihr Merkpreis: ${gpTxt(a.ref)}${refDate(a.ref)}</p>`;}
   $("cRes").innerHTML=h||`<p class="mut">Noch keine vollständige Angabe.</p>`;
   if($("cRefBtn"))$("cRefBtn").disabled=!A;
   calcCur=A;
@@ -555,7 +561,7 @@ document.addEventListener("click",ev=>{
     case "toonline":{const om=S.markets.find(x=>x.online);if(om){const sel=document.getElementById("hMarket");sel.value=om.id;sel.dispatchEvent(new Event("change",{bubbles:true}));}break;}
     case "paste":pasteList();break;
     case "calc":openCalc(key);break;
-    case "cref":{const s2=S.articles[calcKey];if(s2&&calcCur){s2.ref={v:calcCur.v,u:calcCur.u};save();toast("Merkpreis gespeichert");calc();}break;}
+    case "cref":{const s2=S.articles[calcKey];if(s2&&calcCur){s2.ref={v:calcCur.v,u:calcCur.u,d:Date.now()};save();toast("Merkpreis gespeichert");calc();}break;}
   }
 });
 
