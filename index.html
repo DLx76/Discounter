@@ -132,7 +132,7 @@ a.btn{color:var(--acc);text-decoration:none;font-weight:600;font-size:15px;min-h
 
 <script>
 "use strict";
-const APP_VERSION="1.8.1";
+const APP_VERSION="1.9.0";
 const CATS=[["leergut","Leergut / Pfand"],["obst","Obst & Gemüse"],["brot","Brot & Backwaren"],["frische","Fleisch, Wurst & Fisch"],["molkerei","Milch, Käse & Eier"],["theke","Bedientheke"],["fruehstueck","Kaffee, Tee & Frühstück"],["nudeln","Nudeln, Reis & Hülsenfrüchte"],["konserven","Konserven & Saucen"],["gewuerze","Gewürze, Öl & Essig"],["backen","Mehl, Zucker & Backen"],["suess","Süßes & Snacks"],["aktion","Aktionsware"],["drogerie","Drogerie allgemein"],["kosmetik","Dekorative Kosmetik"],["gesicht","Gesichtspflege"],["haar","Haarpflege"],["koerper","Körperpflege & Deo"],["rasur","Rasur & Herren"],["zahn","Zahnpflege"],["damen","Damenhygiene"],["sonne","Sonnenschutz"],["gesundheit","Gesundheit & Vitamine"],["baby","Baby"],["papier","Papierwaren"],["haushalt","Haushalt & Reinigung"],["tier","Tierbedarf"],["getraenke","Getränke"],["wein","Wein, Bier & Spirituosen"],["tk","Tiefkühl"],["sonst","Sonstiges"],["kasse","Kasse"]];
 const CATNAME=Object.fromEntries(CATS);
 const FIXED_FIRST="leergut",FIXED_LAST="kasse";
@@ -142,9 +142,10 @@ const TPL={
   lidl:["leergut","obst","brot","frische","molkerei","fruehstueck","nudeln","konserven","gewuerze","backen","suess","aktion",...DRUG,"haushalt","tier","getraenke","wein","tk","sonst","kasse"],
   edeka:["leergut","obst","brot","theke","frische","molkerei","fruehstueck","backen","nudeln","konserven","gewuerze","suess","getraenke","wein",...DRUG,"haushalt","tier","tk","aktion","sonst","kasse"],
   dm:["leergut","aktion","kosmetik","gesicht","sonne","haar","koerper","rasur","zahn","damen","drogerie","gesundheit","baby","fruehstueck","backen","nudeln","suess","getraenke","haushalt","papier","tier","sonst","kasse"],
+  kaufland:["leergut","obst","brot","konserven","nudeln","gewuerze","backen","fruehstueck","suess","theke","frische","molkerei","tk",...DRUG,"haushalt","tier","aktion","getraenke","wein","sonst","kasse"],
   rossmann:["leergut","aktion","kosmetik","gesicht","haar","koerper","rasur","sonne","zahn","damen","drogerie","gesundheit","baby","haushalt","papier","tier","suess","fruehstueck","getraenke","sonst","kasse"]
 };
-const TPLNAME={aldinord:"Aldi Nord",lidl:"Lidl",edeka:"Edeka",dm:"dm",rossmann:"Rossmann"};
+const TPLNAME={aldinord:"Aldi Nord",lidl:"Lidl",edeka:"Edeka",dm:"dm",rossmann:"Rossmann",kaufland:"Kaufland"};
 
 /* Kategorie-Erkennung */
 const EXACT={ei:"molkerei",eier:"molkerei","öl":"gewuerze",tee:"fruehstueck",bier:"wein",reis:"nudeln",salz:"gewuerze",eis:"tk",rum:"wein",gin:"wein",tk:"tk",deo:"koerper",saft:"getraenke",brot:"brot",mais:"konserven",senf:"gewuerze"};
@@ -214,6 +215,7 @@ const onList=key=>S.list.find(x=>x.k===key);
 for(const m of S.markets){
   if(m.scores.kosmetik==null&&m.scores.drogerie!=null){DRUG.forEach((c,i)=>{if(m.scores[c]==null)m.scores[c]=m.scores.drogerie+(i+1)*0.01;});normalize(m);}
 }
+if(!S.seedKaufland){if(!S.markets.some(m=>m.tpl==="kaufland"))S.markets.push(newMarket("Kaufland","kaufland"));S.seedKaufland=1;save();}
 if(!S.seedOnline){
   if(!S.markets.some(m=>m.online)){const om=newMarket("Online","aldinord");om.online=true;om.learn=false;S.markets.push(om);}
   for(const [n,c,sh] of [["Bio Tokujou Sencha Morimoto-Kamimizu","fruehstueck","tee-kontor-kiel.de"],["Dark Pearl Oolong","fruehstueck","tee-kontor-kiel.de"],["Chili Chipotle Jalapeno rot geschrotet","gewuerze","gewuerzshop-mayer.de"],["Kampot Pfeffer rot ganz","gewuerze","gewuerzshop-mayer.de"],["Kaffee Columbien Excelso EP Microlot","fruehstueck","kaffee-ottimo.com"]]){
@@ -296,6 +298,7 @@ function relTime(ts){
 }
 
 /* Rendern */
+function setLoc(a,v){v=(v||"").trim();a.loc=a.loc||{};if(v)a.loc[S.current]=v;else delete a.loc[S.current];}
 const shopUrl=a=>a.url||("https://"+a.shop);
 function setShop(a,v){
   v=(v||"").trim();
@@ -308,7 +311,7 @@ function itemHtml(e){
   const a=S.articles[e.k]||{name:e.k};
   let chip="";
   if(a.vorrat){chip=a.stock>0?`<span class="chip warn">noch ${a.stock} da</span>`:`<span class="chip">Vorrat leer</span>`;}
-  return `<div class="item${e.done?" done":""}" data-act="toggle" data-k="${esc(e.k)}"><span class="box"></span><span class="nm">${esc(a.name)}${a.shop&&mkt().online?`<span class="sub">${esc(relTime(a.last))}</span>`:""}</span>${chip}<button class="more" data-act="edit" data-k="${esc(e.k)}" aria-label="Bearbeiten">⋯</button></div>`;
+  return `<div class="item${e.done?" done":""}" data-act="toggle" data-k="${esc(e.k)}"><span class="box"></span><span class="nm">${esc(a.name)}${a.loc&&a.loc[S.current]&&!mkt().online?`<span class="sub">📍 ${esc(a.loc[S.current])}</span>`:""}${a.shop&&mkt().online?`<span class="sub">${esc(relTime(a.last))}</span>`:""}</span>${chip}<button class="more" data-act="edit" data-k="${esc(e.k)}" aria-label="Bearbeiten">⋯</button></div>`;
 }
 function renderList(){
   const m=mkt(),open=S.list.filter(x=>!x.done),done=S.list.filter(x=>x.done);
@@ -325,7 +328,8 @@ function renderList(){
     }
   }
   if(!m.online) for(const c of order(m)){
-    const its=open.filter(e=>!isShop(e)&&(S.articles[e.k]||{}).cat===c).sort((x,y)=>S.articles[x.k].name.localeCompare(S.articles[y.k].name,"de"));
+    const lc=e=>((S.articles[e.k].loc||{})[S.current]||"");
+    const its=open.filter(e=>!isShop(e)&&(S.articles[e.k]||{}).cat===c).sort((x,y)=>(!lc(x))-(!lc(y))||lc(x).localeCompare(lc(y),"de",{numeric:true})||S.articles[x.k].name.localeCompare(S.articles[y.k].name,"de"));
     if(its.length) h+=`<h3>${esc(CATNAME[c])}</h3>`+its.map(itemHtml).join("");
   }
   const onl=open.filter(isShop);
@@ -392,6 +396,8 @@ function openSheet(key,isNew){
   const e=onList(key);
   sheet.innerHTML=`<h2>${isNew?(mkt().online?`Wo bestellen Sie „${esc(a.name)}“?`:`Wo steht „${esc(a.name)}“?`):esc(a.name)}</h2>
   <select id="sCat">${CATS.filter(c=>c[0]!=="kasse").map(c=>`<option value="${c[0]}"${c[0]===a.cat?" selected":""}>${esc(c[1])}</option>`).join("")}</select>
+  ${mkt().online?"":`<p class="mut" style="margin:12px 0 4px">Fundort bei ${esc(mkt().name)} (optional)</p>
+  <input type="text" id="sLoc" style="width:100%" value="${esc((a.loc||{})[S.current]||"")}" placeholder="z. B. Gang 7, links unten">`}
   <p class="mut" style="margin:12px 0 4px">Online-Shop (Webseite oder Produktlink, optional)</p>
   <div class="row"><input type="text" id="sShop" class="grow" list="shops" inputmode="url" autocapitalize="off" value="${esc(a.url||a.shop||"")}" placeholder="z. B. tee-kontor-kiel.de">${a.shop?`<a class="btn" id="sShopLink" href="${esc(shopUrl(a))}" target="_blank" rel="noopener">↗</a>`:""}</div>
   <label class="chk"><input type="checkbox" id="sVor"${a.vorrat?" checked":""}> Vorratsartikel (im Vorratsschrank führen)</label>
@@ -401,10 +407,12 @@ function openSheet(key,isNew){
   <div class="btns">${e?`<button data-act="sremove">Von der Liste</button>`:""}<button data-act="sforget">Artikel löschen</button><button class="pri" data-act="sclose">Fertig</button></div>`;
   if(!sheet.open) sheet.showModal();
   document.getElementById("sCat").onchange=ev=>{a.cat=ev.target.value;save();};
+  const sl=document.getElementById("sLoc");
+  if(sl) sl.onchange=ev=>{setLoc(a,ev.target.value);save();};
   document.getElementById("sShop").onchange=ev=>{if(setShop(a,ev.target.value)){save();toast(a.shop?"Shop: "+a.shop:"Shop entfernt");}};
   document.getElementById("sVor").onchange=ev=>{a.vorrat=ev.target.checked;document.getElementById("sStock").hidden=!a.vorrat;save();};
 }
-sheet.addEventListener("close",()=>{const si=document.getElementById("sShop");if(si&&sheetKey&&S.articles[sheetKey]){const a=S.articles[sheetKey];if((si.value.trim())!==(a.url||a.shop||""))setShop(a,si.value);save();}sheetKey=null;calcKey=null;sheet.oninput=null;render();});
+sheet.addEventListener("close",()=>{const sl=document.getElementById("sLoc");if(sl&&sheetKey&&S.articles[sheetKey]){setLoc(S.articles[sheetKey],sl.value);save();}const si=document.getElementById("sShop");if(si&&sheetKey&&S.articles[sheetKey]){const a=S.articles[sheetKey];if((si.value.trim())!==(a.url||a.shop||""))setShop(a,si.value);save();}sheetKey=null;calcKey=null;sheet.oninput=null;render();});
 sheet.addEventListener("click",ev=>{if(ev.target===sheet)sheet.close();});
 
 /* Teilen & Einfügen */
